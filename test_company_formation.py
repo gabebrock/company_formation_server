@@ -146,3 +146,44 @@ def test_deleware_llc_pdf():
     assert "THIRD: The purpose of the corporation is to engage" in text
     assert "FOURTH: The total number of shares of stock" in text
     assert "IN WITNESS WHEREOF, the undersigned" in text
+
+def test_newyork_corporation_pdf():
+    test_data = {
+        "company_name": "New York Test Corp",
+        "state_of_formation": "NY",
+        "company_type": "corporation",
+        "incorporator_name": "Testy McTestface"
+    }
+    
+    pdf_buffer = generate_newyork_articles(CompanyFormation(**test_data))
+    pdf_buffer.seek(0)
+    
+    reader = PdfReader(pdf_buffer)
+    text = "\n".join(page.extract_text() for page in reader.pages)
+    
+    assert "New York Test Corp" in text
+    assert "ARTICLES OF INCORPORATION" in text
+    assert "ARTICLE I: The name of this corporation is:" in text
+    assert "ARTICLE II: The purpose of the corporation" in text
+    assert "ARTICLE III: The name and address in New York" in text
+
+def test_newyork_llc_pdf():
+    test_data = {
+        "company_name": "New York Test LLC",
+        "state_of_formation": "NY",
+        "company_type": "LLC",
+        "incorporator_name": "Testy McTestface"
+    }
+    
+    pdf_buffer = generate_newyork_llc_certificate(CompanyFormation(**test_data))
+    pdf_buffer.seek(0)
+    
+    reader = PdfReader(pdf_buffer)
+    text = "\n".join(page.extract_text() for page in reader.pages)
+    
+    assert "New York Test LLC" in text
+    assert "ARTICLES OF ORGANIZATION" in text
+    assert "ARTICLE I: The name of the limited liability company is:" in text
+    assert "ARTICLE II: The purpose of the limited liability company" in text
+    assert "ARTICLE III: The name and address in New York" in text
+        
