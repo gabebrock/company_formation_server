@@ -1,5 +1,7 @@
 import pytest
-from app import CompanyFormation, generate_delaware_articles, generate_california_articles, generate_california_llc_certificate
+from app import (CompanyFormation, generate_delaware_articles, generate_delaware_llc_certificate,
+                 generate_california_articles, generate_california_llc_certificate,
+                 generate_newyork_articles, generate_newyork_llc_certificate)
 from pydantic import ValidationError
 from PyPDF2 import PdfReader
 import io
@@ -21,7 +23,9 @@ def test_state_validation():
             "company_name": "Test Company",
             "state_of_formation": state,
             "company_type": "corporation",
-            "incorporator_name": "Test User"
+            "incorporator_name": "Test User",
+            "county": "Test County",
+            "address": "123 Test St, Test City, ST 12345"
         }
         company = CompanyFormation(**data)
         assert company.state_of_formation == state.upper()
@@ -32,7 +36,9 @@ def test_state_validation():
             "company_name": "Test Company",
             "state_of_formation": "XX",
             "company_type": "corporation",
-            "incorporator_name": "Test User"
+            "incorporator_name": "Test User",
+            "county": "Test County",
+            "address": "123 Test St, Test City, ST 12345"
         }
         CompanyFormation(**data)
 
@@ -42,7 +48,9 @@ def test_pdf_generation():
         "company_name": "Basic Test Company",
         "state_of_formation": "DE",
         "company_type": "corporation",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "New Castle County",
+        "address": "251 Little Falls Drive, Wilmington, DE 19808"
     }
     
     # Generate PDF
@@ -68,7 +76,9 @@ def test_california_corporation_pdf():
         "company_name": "California Test Corp",
         "state_of_formation": "CA",
         "company_type": "corporation",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "Los Angeles County",
+        "address": "123 Main Street, Los Angeles, CA 90001"
     }
     
     pdf_buffer = generate_california_articles(CompanyFormation(**test_data))
@@ -88,7 +98,9 @@ def test_california_llc_pdf():
         "company_name": "California Test LLC",
         "state_of_formation": "CA",
         "company_type": "LLC",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "Los Angeles County",
+        "address": "123 Main Street, Los Angeles, CA 90001"
     }
     
     pdf_buffer = generate_california_llc_certificate(CompanyFormation(**test_data))
@@ -108,7 +120,9 @@ def test_deleware_corporation_pdf():
         "company_name": "Delaware Test Corp",
         "state_of_formation": "DE",
         "company_type": "corporation",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "New Castle County",
+        "address": "251 Little Falls Drive, Wilmington, DE 19808"
     }
     
     pdf_buffer = generate_delaware_articles(CompanyFormation(**test_data))
@@ -130,7 +144,9 @@ def test_deleware_llc_pdf():
         "company_name": "Delaware Test LLC",
         "state_of_formation": "DE",
         "company_type": "LLC",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "New Castle County",
+        "address": "251 Little Falls Drive, Wilmington, DE 19808"
     }
     
     pdf_buffer = generate_delaware_llc_certificate(CompanyFormation(**test_data))
@@ -140,19 +156,19 @@ def test_deleware_llc_pdf():
     text = "\n".join(page.extract_text() for page in reader.pages)
     
     assert "Delaware Test LLC" in text
-    assert "CERTIFICATE OF INCORPORATION" in text
-    assert "FIRST: The name of this corporation is:" in text
-    assert "SECOND: Its registered office in the State of Delaware" in text
-    assert "THIRD: The purpose of the corporation is to engage" in text
-    assert "FOURTH: The total number of shares of stock" in text
-    assert "IN WITNESS WHEREOF, the undersigned" in text
+    assert "CERTIFICATE OF FORMATION" in text
+    assert "FIRST: The name of the limited liability company is:" in text
+    assert "SECOND: The address of its registered office in the State of Delaware" in text
+    assert "THIRD: The name and address of its registered agent" in text
 
 def test_newyork_corporation_pdf():
     test_data = {
         "company_name": "New York Test Corp",
         "state_of_formation": "NY",
         "company_type": "corporation",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "New York County",
+        "address": "123 Main St, New York, NY 10001"
     }
     
     pdf_buffer = generate_newyork_articles(CompanyFormation(**test_data))
@@ -162,17 +178,28 @@ def test_newyork_corporation_pdf():
     text = "\n".join(page.extract_text() for page in reader.pages)
     
     assert "New York Test Corp" in text
-    assert "ARTICLES OF INCORPORATION" in text
-    assert "ARTICLE I: The name of this corporation is:" in text
-    assert "ARTICLE II: The purpose of the corporation" in text
-    assert "ARTICLE III: The name and address in New York" in text
-
+    assert "CERTIFICATE OF INCORPORATION" in text
+    assert "FIRST:" in text
+    assert "The name of the corporation is:" in text
+    assert "SECOND:" in text
+    assert "The purpose of the corporation" in text
+    assert "THIRD:" in text
+    assert "The county, within this state" in text
+    assert "New York County" in text
+    assert "FOURTH:" in text
+    assert "The corporation shall have authority to issue one class of shares" in text
+    assert "FIFTH:" in text
+    assert "The Secretary of State is designated as agent" in text
+    
+    
 def test_newyork_llc_pdf():
     test_data = {
         "company_name": "New York Test LLC",
         "state_of_formation": "NY",
         "company_type": "LLC",
-        "incorporator_name": "Testy McTestface"
+        "incorporator_name": "Testy McTestface",
+        "county": "Queens County",
+        "address": "456 Park Ave, New York, NY 11101"
     }
     
     pdf_buffer = generate_newyork_llc_certificate(CompanyFormation(**test_data))
@@ -183,7 +210,11 @@ def test_newyork_llc_pdf():
     
     assert "New York Test LLC" in text
     assert "ARTICLES OF ORGANIZATION" in text
-    assert "ARTICLE I: The name of the limited liability company is:" in text
-    assert "ARTICLE II: The purpose of the limited liability company" in text
-    assert "ARTICLE III: The name and address in New York" in text
+    assert "FIRST:" in text
+    assert "The name of the limited liability company is:" in text
+    assert "SECOND:" in text
+    assert "The county, within this state" in text
+    assert "Queens County" in text
+    assert "THIRD:" in text
+    assert "The Secretary of State is designated as agent" in text
         
