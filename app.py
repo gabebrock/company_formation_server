@@ -500,6 +500,12 @@ def company_form():
             <label for="incorporator_name">Incorporator Name:</label>
             <input type="text" id="incorporator_name" name="incorporator_name" required>
             
+            <label for="county">County:</label>
+            <input type="text" id="county" name="county" required>
+            
+            <label for="address">Address:</label>
+            <input type="text" id="address" name="address" required>
+            
             <button type="submit">Submit</button>
         </form>
     </body>
