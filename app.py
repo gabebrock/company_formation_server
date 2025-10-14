@@ -15,6 +15,8 @@ class CompanyFormation(BaseModel):
     state_of_formation: str = Field(..., description="US state or territory")
     company_type: Literal["corporation", "LLC"] = Field(..., description="Type of company")
     incorporator_name: str = Field(..., description="Name of incorporator")
+    county: str = Field(..., description="County for NY formations")
+    address: str = Field(..., description="Address for NY formations")
 
     @validator('company_name')
     def validate_company_name(cls, v):
@@ -178,6 +180,178 @@ def generate_california_llc_certificate(company_data: CompanyFormation) -> Bytes
     buffer.seek(0)
     return buffer
 
+def generate_newyork_articles(company_data: CompanyFormation) -> BytesIO:
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    
+    # Title section - centered
+    y_position = 750
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(300, y_position, "CERTIFICATE OF INCORPORATION")
+    y_position -= 20
+    c.drawCentredString(300, y_position, "OF")
+    y_position -= 20
+    c.drawCentredString(300, y_position, company_data.company_name)
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawCentredString(300, y_position, "Under Section 402 of the Business Corporation Law")
+    
+    # FIRST - Company Name
+    y_position -= 40
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "FIRST:")
+    c.setFont("Helvetica", 11)
+    c.drawString(85, y_position, "The name of the corporation is:")
+    y_position -= 20
+    c.drawString(50, y_position, company_data.company_name)
+
+    # SECOND - Purpose
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "SECOND: ")
+    c.setFont("Helvetica", 11)
+    c.drawString(100, y_position, "The purpose of the corporation is to engage in any lawful act or activity for which")
+    y_position -= 15
+    c.drawString(50, y_position, "corporations may be organized under the Business Corporation Law. The corporation is")
+    y_position -= 15
+    c.drawString(50, y_position, "not formed to engage in any act or activity requiring the consent or approval of any state") 
+    y_position -= 15
+    c.drawString(50, y_position, "official, department, board, agency or other body without such consent or approval first")
+    y_position -= 15
+    c.drawString(50, y_position, "being obtained.")
+    
+    # THIRD - County
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "THIRD:")
+    c.setFont("Helvetica", 11)
+    c.drawString(90, y_position, "The county, within this state, in which the office of the corporation is to be")
+    y_position -= 15
+    c.drawString(50, y_position, f"located is: {company_data.county}.")
+
+    # FOURTH - Purpose
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "FOURTH: ")
+    c.setFont("Helvetica", 11)
+    c.drawString(105, y_position, "The corporation shall have authority to issue one class of shares consisting of ")
+    y_position -= 15
+    c.drawString(50, y_position, "200 common shares without par value.")
+    
+    # FIFTH - Secretary of State designation
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "FIFTH:")
+    c.setFont("Helvetica", 11)
+    c.drawString(85, y_position, "The Secretary of State is designated as agent of the corporation upon whom")
+    y_position -= 15
+    c.drawString(50, y_position, "process against the corporation may be served.")
+    y_position -= 25
+    c.translate(36, 0) # indent by half an inch
+    c.drawString(50, y_position, "The post office address to which the Secretary of State shall mail a copy of")
+    y_position -= 15
+    c.drawString(50, y_position, "any process against the corporation served upon the Secretary of State is:")
+    y_position -= 20
+    c.drawString(50, y_position, company_data.address)
+    c.translate(-36, 0) # undo indent
+    
+    # Incorporator section
+    y_position -= 50
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "Incorporator:")
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawString(80, y_position, f"/s/ {company_data.incorporator_name}")
+    y_position -= 15
+    c.drawString(80, y_position, company_data.address)
+    
+    # Filer's Name and Address section
+    y_position -= 40
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "Filer's Name and Address:")
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawString(80, y_position, f"/s/ {company_data.incorporator_name}")
+    y_position -= 15
+    c.drawString(80, y_position, company_data.address)
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+def generate_newyork_llc_certificate(company_data: CompanyFormation) -> BytesIO:
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    
+    # Title section - centered
+    y_position = 750
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(300, y_position, "ARTICLES OF ORGANIZATION")
+    y_position -= 20
+    c.drawCentredString(300, y_position, "OF")
+    y_position -= 20
+    c.drawCentredString(300, y_position, company_data.company_name)
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawCentredString(300, y_position, "Under Section 203 of the Limited Liability Company Law")
+    
+    # FIRST - Company Name
+    y_position -= 40
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "FIRST:")
+    c.setFont("Helvetica", 11)
+    c.drawString(100, y_position, "The name of the limited liability company is:")
+    y_position -= 20
+    c.drawString(50, y_position, company_data.company_name)
+    
+    # SECOND - County
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "SECOND: ")
+    c.setFont("Helvetica", 11)
+    c.drawString(100, y_position, "The county, within this state, in which the office of the limited liability company is to be")
+    y_position -= 15
+    c.drawString(50, y_position, f"located is: {company_data.county}.")
+    
+    # THIRD - Secretary of State designation
+    y_position -= 30
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "THIRD:")
+    c.setFont("Helvetica", 11)
+    c.drawString(100, y_position, "The Secretary of State is designated as agent of the limited liability company upon whom")
+    y_position -= 15
+    c.drawString(50, y_position, "process against the limited liability company be served.")
+    y_position -= 15
+    c.drawString(50, y_position, "The post office address to which the Secretary of State shall mail a copy of any process against")
+    y_position -= 15
+    c.drawString(50, y_position, "the limited liability company upon the Secretary of State by personal delivery is:")
+    y_position -= 20
+    c.drawString(50, y_position, company_data.address)
+    
+    # Organizer section
+    y_position -= 50
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "Organizer:")
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawString(50, y_position, f"/s/ {company_data.incorporator_name}")
+    y_position -= 15
+    c.drawString(50, y_position, company_data.address)
+    
+    # Filer's Name and Address section
+    y_position -= 40
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, y_position, "Filer's Name and Address:")
+    y_position -= 20
+    c.setFont("Helvetica", 11)
+    c.drawString(50, y_position, f"/s/ {company_data.incorporator_name}")
+    y_position -= 15
+    c.drawString(50, y_position, company_data.address)
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
 @app.route('/form-company', methods=['POST'])
 def form_company():
     try:
@@ -189,8 +363,12 @@ def form_company():
                 "company_name": request.form.get("company_name"),
                 "state_of_formation": request.form.get("state_of_formation"),
                 "company_type": request.form.get("company_type"),
-                "incorporator_name": request.form.get("incorporator_name")
+                "incorporator_name": request.form.get("incorporator_name"),
+                "county": request.form.get("county"),
+                "address": request.form.get("address")
             }
+            # Remove None values to use defaults
+            data = {k: v for k, v in data.items() if v is not None}
         
         company_data = CompanyFormation(**data)
         
@@ -208,9 +386,16 @@ def form_company():
                 pdf_buffer = generate_california_llc_certificate(company_data)
             else:
                 return jsonify({"error": "Unsupported company type"}), 400
+        elif company_data.state_of_formation == 'NY':
+            if company_data.company_type == 'corporation':
+                pdf_buffer = generate_newyork_articles(company_data)
+            elif company_data.company_type == 'LLC':
+                pdf_buffer = generate_newyork_llc_certificate(company_data)
+            else:
+                return jsonify({"error": "Unsupported company type"}), 400
         else:
             return jsonify({
-                "error": "Only Delaware and California entities are supported at this time"
+                "error": "Only Delaware, California, and New York entities are supported at this time"
             }), 400
     
         return send_file(
@@ -248,6 +433,22 @@ def form_company_schema():
             "state_of_formation": "CA",
             "company_type": "LLC",
             "incorporator_name": "Emily Chen"
+        },
+        {
+            "company_name": "Tech Innovators Co.",
+            "state_of_formation": "NY",
+            "company_type": "corporation",
+            "incorporator_name": "Michael Johnson",
+            "county": "New York County",
+            "address": "123 Main St, New York, NY 10001"
+        },
+        {
+            "company_name": "Empire State of Mind, LLC",
+            "state_of_formation": "NY",
+            "company_type": "LLC",
+            "incorporator_name": "Emily Chen",
+            "county": "Queens County",
+            "address": "456 Park Ave, New York, NY 11101"
         }
     ]
     return jsonify(examples)
