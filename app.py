@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_file
-from pydantic import BaseModel, Field, validator
-from typing import Literal
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Literal, Optional
 import re
 from io import BytesIO
 from reportlab.pdfgen import canvas
@@ -15,16 +15,18 @@ class CompanyFormation(BaseModel):
     state_of_formation: str = Field(..., description="US state or territory")
     company_type: Literal["corporation", "LLC"] = Field(..., description="Type of company")
     incorporator_name: str = Field(..., description="Name of incorporator")
-    county: str = Field(..., description="County for NY formations")
-    address: str = Field(..., description="Address for NY formations")
+    county: Optional[str] = Field(None, description="County (required for NY formations)")
+    address: Optional[str] = Field(None, description="Address (required for NY formations)")
 
-    @validator('company_name')
+    @field_validator('company_name')
+    @classmethod
     def validate_company_name(cls, v):
         if not re.match(r'^[a-zA-Z0-9\s,\.\'&]+$', v):
             raise ValueError('Company name can only contain alphanumeric characters, spaces, commas, periods, apostrophes, and ampersands')
         return v
 
-    @validator('state_of_formation')
+    @field_validator('state_of_formation')
+    @classmethod
     def validate_state(cls, v):
         states = {
             'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -37,6 +39,16 @@ class CompanyFormation(BaseModel):
         if v.upper() not in states:
             raise ValueError('Invalid US state or territory')
         return v.upper()
+    
+    @model_validator(mode='after')
+    def validate_ny_requirements(self):
+        if self.state_of_formation == 'NY':
+            if not self.county:
+                raise ValueError('County is required for New York formations')
+            if not self.address:
+                raise ValueError('Address is required for New York formations')
+        
+        return self
 
 def generate_delaware_articles(company_data: CompanyFormation) -> BytesIO:
     buffer = BytesIO()
@@ -409,46 +421,65 @@ def form_company():
 
 @app.route('/form-company-schema', methods=['GET'])
 def form_company_schema():
+    """Returns example requests showing required fields for each state"""
     examples = [
         {
-            "company_name": "Acme Corp, Inc.",
-            "state_of_formation": "DE",
-            "company_type": "corporation",
-            "incorporator_name": "John Smith"
+            "description": "Delaware Corporation (county and address not required)",
+            "data": {
+                "company_name": "Acme Corp, Inc.",
+                "state_of_formation": "DE",
+                "company_type": "corporation",
+                "incorporator_name": "John Smith"
+            }
         },
         {
-            "company_name": "Smith & Sons, LLC",
-            "state_of_formation": "DE",
-            "company_type": "LLC",
-            "incorporator_name": "Jane Doe"
+            "description": "Delaware LLC (county and address not required)",
+            "data": {
+                "company_name": "Smith & Sons, LLC",
+                "state_of_formation": "DE",
+                "company_type": "LLC",
+                "incorporator_name": "Jane Doe"
+            }
         },
         {
-            "company_name": "Tech Innovators Co.",
-            "state_of_formation": "CA",
-            "company_type": "corporation",
-            "incorporator_name": "Michael Johnson"
+            "description": "California Corporation (county and address not required)",
+            "data": {
+                "company_name": "Tech Innovators Co.",
+                "state_of_formation": "CA",
+                "company_type": "corporation",
+                "incorporator_name": "Michael Johnson"
+            }
         },
         {
-            "company_name": "California Dreaming, LLC",
-            "state_of_formation": "CA",
-            "company_type": "LLC",
-            "incorporator_name": "Emily Chen"
+            "description": "California LLC (county and address not required)",
+            "data": {
+                "company_name": "California Dreaming, LLC",
+                "state_of_formation": "CA",
+                "company_type": "LLC",
+                "incorporator_name": "Emily Chen"
+            }
         },
         {
-            "company_name": "Tech Innovators Co.",
-            "state_of_formation": "NY",
-            "company_type": "corporation",
-            "incorporator_name": "Michael Johnson",
-            "county": "New York County",
-            "address": "123 Main St, New York, NY 10001"
+            "description": "New York Corporation (county and address REQUIRED)",
+            "data": {
+                "company_name": "Big Apple Corp, Inc.",
+                "state_of_formation": "NY",
+                "company_type": "corporation",
+                "incorporator_name": "Michael Johnson",
+                "county": "NEW YORK COUNTY",
+                "address": "123 Main St, New York, NY 10001"
+            }
         },
         {
-            "company_name": "Empire State of Mind, LLC",
-            "state_of_formation": "NY",
-            "company_type": "LLC",
-            "incorporator_name": "Emily Chen",
-            "county": "Queens County",
-            "address": "456 Park Ave, New York, NY 11101"
+            "description": "New York LLC (county and address REQUIRED)",
+            "data": {
+                "company_name": "Empire State of Mind, LLC",
+                "state_of_formation": "NY",
+                "company_type": "LLC",
+                "incorporator_name": "Emily Chen",
+                "county": "QUEENS COUNTY",
+                "address": "456 Park Ave, New York, NY 11101"
+            }
         }
     ]
     return jsonify(examples)
@@ -476,6 +507,8 @@ def company_form():
             input, select {{ padding: 8px; font-size: 16px; }}
             button {{ background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; }}
             button:hover {{ background: #0056b3; }}
+            .ny-only {{ display: none; }}
+            .info-text {{ font-size: 14px; color: #666; margin-top: 5px; }}
         </style>
     </head>
     <body>
@@ -500,14 +533,40 @@ def company_form():
             <label for="incorporator_name">Incorporator Name:</label>
             <input type="text" id="incorporator_name" name="incorporator_name" required>
             
-            <label for="county">County:</label>
-            <input type="text" id="county" name="county" required>
-            
-            <label for="address">Address:</label>
-            <input type="text" id="address" name="address" required>
+            <div id="ny_fields" class="ny-only">
+                <label for="county">County:</label>
+                <input type="text" id="county" name="county">
+                <div class="info-text">Required for New York formations (e.g., NEW YORK COUNTY, KINGS COUNTY)</div>
+                
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address">
+                <div class="info-text">Mailing address for process service (required for NY)</div>
+            </div>
             
             <button type="submit">Submit</button>
         </form>
+        
+        <script>
+            const stateSelect = document.getElementById('state_of_formation');
+            const nyFields = document.getElementById('ny_fields');
+            const countyInput = document.getElementById('county');
+            const addressInput = document.getElementById('address');
+            
+            stateSelect.addEventListener('change', function() {{
+                if (this.value === 'NY') {{
+                    nyFields.style.display = 'grid';
+                    nyFields.style.gap = '15px';
+                    countyInput.required = true;
+                    addressInput.required = true;
+                }} else {{
+                    nyFields.style.display = 'none';
+                    countyInput.required = false;
+                    addressInput.required = false;
+                    countyInput.value = '';
+                    addressInput.value = '';
+                }}
+            }});
+        </script>
     </body>
     </html>
     '''
