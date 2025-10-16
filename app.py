@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Literal, Optional
 import re
 from io import BytesIO
@@ -7,6 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from datetime import datetime
 import os
+import base64
 
 app = Flask(__name__)
 
@@ -15,8 +16,8 @@ class CompanyFormation(BaseModel):
     state_of_formation: str = Field(..., description="US state or territory")
     company_type: Literal["corporation", "LLC"] = Field(..., description="Type of company")
     incorporator_name: str = Field(..., description="Name of incorporator")
-    county: Optional[str] = Field(None, description="County (required for NY formations)")
-    address: Optional[str] = Field(None, description="Address (required for NY formations)")
+    county: Optional[str] = Field(default="NEW YORK COUNTY", description="County (required for NY formations)")
+    address: Optional[str] = Field(default="20 W 34th St., New York, NY 10001", description="Address (required for NY formations)")
 
     @field_validator('company_name')
     @classmethod
@@ -39,16 +40,6 @@ class CompanyFormation(BaseModel):
         if v.upper() not in states:
             raise ValueError('Invalid US state or territory')
         return v.upper()
-    
-    @model_validator(mode='after')
-    def validate_ny_requirements(self):
-        if self.state_of_formation == 'NY':
-            if not self.county:
-                raise ValueError('County is required for New York formations')
-            if not self.address:
-                raise ValueError('Address is required for New York formations')
-        
-        return self
 
 def generate_delaware_articles(company_data: CompanyFormation) -> BytesIO:
     buffer = BytesIO()
@@ -382,6 +373,14 @@ def form_company():
             # Remove None values to use defaults
             data = {k: v for k, v in data.items() if v is not None}
         
+        # Track missing fields for NY formations
+        missing_fields = []
+        if data.get('state_of_formation', '').upper() == 'NY':
+            if 'county' not in data or not data['county']:
+                missing_fields.append('county')
+            if 'address' not in data or not data['address']:
+                missing_fields.append('address')
+        
         company_data = CompanyFormation(**data)
         
         if company_data.state_of_formation == 'DE':
@@ -409,6 +408,21 @@ def form_company():
             return jsonify({
                 "error": "Only Delaware, California, and New York entities are supported at this time"
             }), 400
+        
+        # If fields were missing for NY, return JSON with warning and base64 PDF
+        if missing_fields:
+            pdf_buffer.seek(0)
+            pdf_base64 = base64.b64encode(pdf_buffer.read()).decode('utf-8')
+            field_list = ', '.join(missing_fields)
+            return jsonify({
+                "warning": f"You forgot to fill out {field_list}. We helped you out, but the IRS may be coming after you.",
+                "pdf_base64": pdf_base64,
+                "filename": f"{company_data.company_name}_certificate.pdf",
+                "missing_fields": missing_fields,
+                "autofilled_values": {
+                    field: getattr(company_data, field) for field in missing_fields
+                }
+            }), 200
     
         return send_file(
             pdf_buffer,
